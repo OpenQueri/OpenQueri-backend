@@ -1,21 +1,45 @@
-use crate::api::search::search::search;
 use axum::{
     Router, routing::get
 };
 
-pub fn router() -> Router{
+use crate::setting::setting::cros;
+
+use crate::api::search::search::search_main;
+use query_search::add_data;
+
+
+pub async fn router() -> Router{
+
+    println!("Start");
+
+    tokio::spawn(async {
+        add_base_data().await;
+        println!("Base data loaded!");
+    });
+
+    println!("Finish");
+
    Router::new()
-   .route("/", get(index_page))
-   .route("/api/search", get(search()))
+   .route("/search", get(search_main))
+    .layer(cros())
 }
 
 
+pub async fn add_base_data(){
+
+ 
+    let link= vec!["https://www.google.com/","https://www.googl4.com/","https://www.goo4gl4.com/"];
+
+    let text = vec!["Знаєш, іноді після чергового нескінченного робочого марафону, коли вже сил майже не лишилось, я сідаю в свою стару машинку, яка скрипить і пахне бензином, і просто їду додому через вечірнє місто. Там мене чекає м’яке ліжко, гарячий чай з м’ятою, і мій пухнастий кіт, який весь день сумно нявкав біля дверей. І в цю мить здається, що все на світі знову стало на свої місця.",
+    "Після цілого дня за комп’ютером, коли очі вже болять, а спина ниє, я заводжу свій пошарпаний, але надійний автомобіль і повільно їду через затори додому. Вдома вже готова тепла ковдра, щойно заварена кава з корицею і мій улюблений сірий котяра, який крутиться під ногами і вимагає уваги. Саме ці прості речі роблять вечір по-справжньому хорошим.",
+    "Буває, що після виснажливого дня в офісі я ледве дочікуюсь моменту, коли сяду за кермо своєї старенької машини й поїду додому. Місто вже світиться вогнями, а я думаю тільки про те, як зараз ляжу в затишне ліжко, вип’ю ароматної кави і погладжу свого пухнастика, який весь день чекав мене біля вікна. Ось заради таких вечорів і живеш."];
+
+    match add_data(&link, &text).await {
+        Ok(res) => res,
+        Err(e) => println!("{}",e),
+    };
 
 
-
-
-async fn index_page() -> String{
-
-    let result = "Hello World".to_string();
-    result
 }
+
+

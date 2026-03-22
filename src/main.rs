@@ -5,7 +5,8 @@ mod router;
 mod setting;
 mod api;
 
-use crate::setting::setting::*;
+
+use crate::{setting::setting::*};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>>{
