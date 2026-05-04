@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-query-search = { path = "/home/kiril/OpenQueri/query-search" }
+query-search = { path = "../query-search" }
+crawler-engine = { path = "../crawler-engine" }
 
 axum = { version = "0.8.8", features = ["macros", "json"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -20,4 +21,7 @@ opt-level = 3
 strip = true  
 
 [release]
+rustflags = ["-C", "target-cpu=native"]
+
+[build]
 rustflags = ["-C", "target-cpu=native"]

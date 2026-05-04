@@ -12,12 +12,9 @@ pub struct TextParam{
 }
 
 #[axum::debug_handler]
-pub async fn search_main(Query(params): Query<TextParam>) -> Json<serde_json::Value>{
+pub async fn search_site_main(Query(params): Query<TextParam>) -> Json<serde_json::Value>{
 
     let text_qwery = params.text;
-
-
-    
 
     match search_data(&text_qwery).await {
         Ok(data) => {
@@ -39,8 +36,6 @@ pub async fn search_main(Query(params): Query<TextParam>) -> Json<serde_json::Va
             }))
         }
     }
-
-
 
 
 }
