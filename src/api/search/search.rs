@@ -5,6 +5,10 @@ use serde::{Deserialize};
 use serde_json::json;
 
 use query_search::search_data;
+use crate::api::stats::redis_stats::RedisStats;
+
+use axum::extract::State;
+use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
 pub struct TextParam{
@@ -12,9 +16,11 @@ pub struct TextParam{
 }
 
 #[axum::debug_handler]
-pub async fn search_site_main(Query(params): Query<TextParam>) -> Json<serde_json::Value>{
+pub async fn search_site_main(Query(params): Query<TextParam>, State(redis): State<Arc<RedisStats>>) -> Json<serde_json::Value>{
 
     let text_qwery = params.text;
+
+    redis.add_cout().await;
 
     match search_data(&text_qwery).await {
         Ok(data) => {

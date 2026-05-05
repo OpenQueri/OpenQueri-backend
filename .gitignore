@@ -1,1 +1,4 @@
 /target
+/search_engine_db
+**/*.rs.bk
+Cargo.lock
