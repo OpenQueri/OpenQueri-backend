@@ -4,7 +4,9 @@ use std::error::Error;
 mod router;
 mod setting;
 mod api;
-
+mod paseto;
+mod argon2;
+mod db;
 
 use crate::{setting::setting::*};
 

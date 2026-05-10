@@ -1,6 +1,5 @@
-use axum::{Json, extract::Query};
+use axum::{Json};
 use serde::{Deserialize};
-use serde_json::json;
 use axum::{response::IntoResponse};
 
 use crawler_engine::link_scrap;

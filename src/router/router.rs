@@ -7,7 +7,8 @@ use crawler_engine::CheckingUniquenessLink::checking::load_links;
 use crate::api::search::search::search_site_main;
 use crate::api::crawler::add::add_parse_site_crawler;
 use crate::api::stats::stats::stats_ws;
-
+use crate::api::auth::register::register;
+use crate::api::auth::login::login;
 use std::sync::Arc;
 use crate::api::stats::redis_stats::RedisStats;
 
@@ -27,9 +28,12 @@ pub async fn router() -> Router{
     println!("Finish");
 
    Router::new()
-   .route("/search", get(search_site_main))
-   .route("/parse-link", post(add_parse_site_crawler))
-   .route("/stats-ws", get(stats_ws))
+    .route("/search", get(search_site_main))
+    .route("/parse-link", post(add_parse_site_crawler))
+    .route("/stats-ws", get(stats_ws))
+    .route("/register", post(register))
+    .route("/login", post(login))
+
    .with_state(redis_stats)
     .layer(cros())
 }
