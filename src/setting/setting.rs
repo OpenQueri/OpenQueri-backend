@@ -1,9 +1,8 @@
 use std::error::Error;
-
+use tower_http::cors::{CorsLayer};
+use axum::http::{Method, header,HeaderValue};
 
 use crate::router::router::router;
-use axum::http::Method;
-use tower_http::cors::{CorsLayer, Any};
 
 pub async fn setting_server() -> Result<(), Box<dyn Error>>{
     
@@ -19,10 +18,15 @@ pub async fn setting_server() -> Result<(), Box<dyn Error>>{
 }
 
 
-pub fn cros() -> CorsLayer{
+pub fn cros() -> CorsLayer {
     println!("cros");
     CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(vec![Method::GET, Method::POST])
-        .allow_headers(Any)
+        .allow_origin("http://localhost:5173".parse::<HeaderValue>().unwrap()) 
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::ACCEPT,
+        ])
+        .allow_credentials(true)
 }
