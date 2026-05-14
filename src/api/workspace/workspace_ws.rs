@@ -4,6 +4,7 @@ use axum::{Json,response::IntoResponse};
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
 };
+use chrono::format::parse;
 use tokio::time::{sleep, Duration};
 use axum_extra::extract::cookie::{CookieJar, Cookie};
 use crate::paseto::paseto::PasetoAuth;
@@ -11,16 +12,23 @@ use serde_json::json;
 use crate::version::VersionServer;
 use serde::Deserialize;
 use futures_util::{SinkExt, StreamExt};
-
-use crate::db::db::Db;
+use crate::db::db::{Db, TrackedSite};
 
 
 pub struct WsWorkSpace {
     sender: futures_util::stream::SplitSink<WebSocket, Message>,
     receiver: futures_util::stream::SplitStream<WebSocket>,
-    id: String,
     db: Db,
+    user_info: User,
 }
+#[derive(Debug)]
+struct User{
+   username: String,
+   role: String,
+   id: String,
+}
+
+
 #[derive(Deserialize, Debug)]
 #[serde(tag = "type")]
 enum ClientRequest {
@@ -28,6 +36,13 @@ enum ClientRequest {
     SubmitNewUrl {
         url: String,
     },
+    #[serde(rename = "UPDATE_SITE")]
+    UpdateSite {},
+    #[serde(rename = "DELETE_URL")]
+    DeleteUrl {
+        url: String
+    },
+
 }
 
 impl WsWorkSpace {
@@ -36,18 +51,21 @@ impl WsWorkSpace {
     pub async fn new(mut socket: WebSocket, id: String) -> Self{
         let (mut send, mut rec) = socket.split();
         let db = Db::new().await;
+
+        
+        
         Self {
             sender: send,
             receiver: rec,
-            id: id,
             db: db,
+            user_info: User { username: "_".to_string(), role: "_".to_string(), id: id },
         }
     }
 
 
     pub async fn workspace_socket(&mut self){
 
-        let name_by_id = match self.db.get_user_name_by_id(&self.id).await {
+        let name_by_id = match self.db.get_user_name_by_id(&self.user_info.id).await {
             Ok(ok_option) => match ok_option {
                 Some(res) => res,
                 None => {
@@ -60,7 +78,7 @@ impl WsWorkSpace {
             }
         };
 
-        let role_user = match self.db.get_role_name_by_id(&self.id).await {
+        let role_user = match self.db.get_role_name_by_id(&self.user_info.id).await {
             Ok(role) => match role {
                 Some(role) => role,
                 None => "User".to_string(),
@@ -76,6 +94,9 @@ impl WsWorkSpace {
             "username": name_by_id,
             "role": role_user,
         });
+
+        self.user_info.role = role_user;
+        self.user_info.username = name_by_id;
 
         if let Ok(json_string) = serde_json::to_string(&initial_msg) {
             let _ = self.sender.send(Message::Text(json_string.into())).await;
@@ -111,7 +132,34 @@ impl WsWorkSpace {
             ClientRequest::SubmitNewUrl { url } => {
                 self.sumbit_new_url(&url).await;
             }
+            ClientRequest::UpdateSite {} => {
+                self.update_site().await;
+            }
+            ClientRequest::DeleteUrl {url} => {
+                self.sumbit_delete_url(url.as_str()).await;
+            }
         }
+    }
+    async fn sumbit_delete_url(
+        &mut self,
+        url_data: &str
+    ){
+        match self.db.get_id_by_url(url_data).await {
+            Ok(id) => {
+                let id = match id {
+                    Some(ok) => ok,
+                    None => -1,
+
+                };
+                if self.user_info.id == id.to_string() {
+                    self.db.delete_url_crawler_user(url_data).await;
+                }
+            }
+            Err(e) => {
+                println!("sumbit_delete_url: {}", e);
+            }
+            
+        };
     }
 
     async fn sumbit_new_url(
@@ -119,18 +167,87 @@ impl WsWorkSpace {
         url_data: &str
     ){
 
-        println!("{}",url_data);
+        let id = &self.parse(self.user_info.id.clone()).await;
+
+        let state = match &self.db.create_new_url(*id, url_data, &self.user_info.username).await {
+            Ok(state) => state.clone(),
+            Err(e_status) => (format!("Error {}",e_status).to_string(),format!("Error").to_string()),
+        };
 
 
         let response = json!({
-            "type": "arr_quesion", 
+            "type": "TrackedSite", 
             "url": url_data,
-            "status": "review",
-            "submittedBy": "System",
-            "lastUpdate": "Щойно"
+            "status": state.0,
+            "submittedBy": self.user_info.username,
+            "lastUpdate": state.1
         });
         
         let _ = self.sender.send(Message::Text(response.to_string().into())).await;
 
+    }
+
+    pub async fn update_site(&mut self){
+        let error_update = vec![TrackedSite{
+            url: "Error _-_ update_site don't work".to_string(),
+            status: "Error".to_string(),
+            submitted_by: "None".to_string(),
+            last_update: "00.00.0000".to_string()
+        }];
+        let vec_site ;
+        match self.user_info.role.as_str() {
+            
+            "Admin" => {
+                vec_site = match self.db.get_crawler_list_admin().await {
+                    Ok(vec) => vec,
+                    Err(e) => {
+                        println!("update_site {}",e);
+                        error_update
+                    }
+                };
+            },
+            "User" => {
+                println!("User");
+                let id_num = self.parse(self.user_info.id.clone()).await;
+                println!("{}",id_num);
+                vec_site = match self.db.get_crawler_list_user(id_num).await {
+                    Ok(vec) => vec,
+                    Err(e) => {
+                        println!("update_site {}",e);
+                        error_update
+                    }
+                };
+
+            },
+            _ => {
+                vec_site = error_update;
+            },
+            
+        }
+
+        println!("{:?}", vec_site);
+
+        for site in vec_site.iter() {
+
+            let response = json!({
+                "type": "TrackedSite", 
+                "url": site.url,
+                "status": site.status,
+                "submittedBy": site.submitted_by,
+                "lastUpdate": site.last_update,
+            });
+        
+            let _ = &self.sender.send(Message::Text(response.to_string().into())).await;
+            
+        }
+    }
+
+
+
+    pub async fn parse(&self, id: String) -> i32 {
+        match id.parse::<i32>() {
+            Ok(id) => return id,
+            Err(e) => return -1,
+        };
     }
 }

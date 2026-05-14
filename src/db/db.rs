@@ -2,6 +2,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::time::Duration;
 use dotenvy::dotenv;
 use std::env;
+use serde::{Serialize, Deserialize};
 
 #[derive(Clone)]
 pub struct Db {
@@ -14,7 +15,17 @@ pub struct UserRow {
     pub password_hash: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)] 
+pub struct TrackedSite {
+    pub url: String,
+    pub status: String,
+    pub submitted_by: String,
+    pub last_update: String,
+}
+
 impl Db {
+
+
     pub async fn new() -> Self {
         dotenv().ok();
         let database_url = env::var("DATABASE_URL").expect("None .env file DATABASE_URL");
@@ -39,6 +50,7 @@ impl Db {
         Ok(res.id)
     }
 
+
     pub async fn get_user_id_by_email(&self, email: &str) -> anyhow::Result<Option<i32>> {
         let res = sqlx::query!(
             "SELECT id FROM users WHERE email = $1",
@@ -62,6 +74,17 @@ impl Db {
         Ok(res.map(|row| row.username))
     }
 
+    pub async fn get_id_by_url(&self, owner_site: &str) -> anyhow::Result<Option<i32>> {
+        let res = sqlx::query!(
+            "SELECT user_id FROM crawler_list WHERE owner_site = $1",
+            owner_site
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(res.and_then(|row| row.user_id))
+    }
+
     pub async fn get_role_name_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
         let id: i32 = id_str.parse()?;
         let res = sqlx::query!(
@@ -74,6 +97,63 @@ impl Db {
         Ok(res.map(|row| row.role_user))
     }
 
+    pub async fn get_crawler_list_admin(&self) -> anyhow::Result<Vec<TrackedSite>> {
+        let rows = sqlx::query!(
+                r#"
+                SELECT url, status, owner_site, created_at::text as "created_at!"
+                FROM crawler_list
+                "#
+            )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let all_sites = rows.into_iter().map(|row| {
+            TrackedSite {
+                url: row.url,
+                status: row.status,
+                submitted_by: row.owner_site,
+                last_update: row.created_at,
+            }}
+        ).collect();
+
+        Ok(all_sites)
+    }
+
+    pub async fn get_crawler_list_user(&self, id_user: i32) -> anyhow::Result<Vec<TrackedSite>> {
+        let rows = sqlx::query!(
+                r#"
+                SELECT url, status, owner_site, created_at::text as "created_at!"
+                FROM crawler_list
+                WHERE user_id = $1
+                "#,
+                id_user
+            )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let all_sites = rows.into_iter().map(|row| {
+            TrackedSite {
+                url: row.url,
+                status: row.status,
+                submitted_by: row.owner_site,
+                last_update: row.created_at,
+            }}
+        ).collect();
+
+        Ok(all_sites)
+    }
+
+    pub async fn create_new_url(&self, user_id: i32, url: &str, username: &str) -> anyhow::Result<(String, String)> {
+        let res = sqlx::query!(
+            "INSERT INTO crawler_list (user_id, url, owner_site ) VALUES ($1, $2, $3) RETURNING status, created_at::text",
+            user_id, url, username
+        ).fetch_one(&self.pool).await?;
+
+
+        let created_at = res.created_at.unwrap_or_else(|| "00.00.0000".to_string());
+        
+        Ok((res.status, created_at))
+    }
     pub async fn get_user_hash_pasword_by_email(&self, email: &str) -> anyhow::Result<Option<String>> {
         let res = sqlx::query!(
             "SELECT password_hash FROM users WHERE email = $1",
@@ -118,6 +198,13 @@ impl Db {
 
     pub async fn delete_user(&self, id: i32) -> anyhow::Result<()> {
         sqlx::query!("DELETE FROM users WHERE id = $1", id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_url_crawler_user(&self, url: &str) -> anyhow::Result<()> {
+        sqlx::query!("DELETE FROM crawler_list WHERE url = $1", url)
             .execute(&self.pool)
             .await?;
         Ok(())
