@@ -22,19 +22,15 @@ impl RedisStats {
         let buffer = Arc::new(AtomicUsize::new(0));
         let stats = Self { client, buffer };
         
-        // Запускаємо воркер, який буде скидати дані в Redis
         stats.start_sync_worker();
         
         stats
     }
 
-    // ТЕПЕР ЦЕ ПРАЦЮЄ МИТТЄВО: просто інкремент в пам'яті
     pub async fn add_cout(&self) {
         self.buffer.fetch_add(1, Ordering::Relaxed);
-        // Прибираємо звідси логіку з'єднання з Redis, вона тепер у воркері нижче
     }
 
-    // Фоновий процес для синхронізації з Redis
     fn start_sync_worker(&self) {
         let buffer = self.buffer.clone();
         let client_opt = self.client.clone();
@@ -42,7 +38,6 @@ impl RedisStats {
         tokio::spawn(async move {
             let Some(client) = client_opt else { return };
             
-            // Створюємо ОДНЕ з'єднання для воркера
             let mut conn = match client.get_multiplexed_async_connection().await {
                 Ok(c) => c,
                 Err(e) => {
