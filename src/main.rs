@@ -1,4 +1,4 @@
-
+#![allow(warnings)]
 use std::error::Error;
 
 mod router;
@@ -7,7 +7,7 @@ mod api;
 mod paseto;
 mod argon2;
 mod db;
-
+mod version;
 use crate::{setting::setting::*};
 
 #[tokio::main]

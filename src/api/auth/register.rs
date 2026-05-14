@@ -19,30 +19,21 @@ pub struct TextParam{
 #[axum::debug_handler]
 pub async fn register(jar: CookieJar, Json(params): Json<TextParam>) -> impl IntoResponse  {
 
+    
     let db = Db::new().await;
 
+    
     let hesh_pasword = Argon::hash_pwd(&params.password).await;
 
-    let id = match db.create_user(&params.username, &hesh_pasword, &params.email).await{
+    let _ = match db.create_user(&params.username, &hesh_pasword, &params.email, "User").await{
         Ok(id) => id,
-        Err(_) => return (jar, error_register("Error crate user").await).into_response(),
+        Err(e) => return {
+            (jar, error_register("Error crate user").await).into_response()}
     };
 
-    let id = format!("{}",id);
-    let token = match PasetoAuth::create_token(&id, 60 * 60 * 24).await {
-        Ok(token) => token,
-        Err(_) => return (jar, error_register("Error crate token").await).into_response(),
-        
-    };
 
-    let cookie = Cookie::build(("auth_token", token))
-        .path("/")
-        .http_only(true)
-        .same_site(axum_extra::extract::cookie::SameSite::Lax)
-        .build();
 
     (
-        jar.add(cookie), 
         Json(json!({ "success": true}))
     ).into_response()
 }

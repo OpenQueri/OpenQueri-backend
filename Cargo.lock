@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "OpenQueri-backend"
-version = "0.1.0"
+version = "0.9.3"
 dependencies = [
  "anyhow",
  "argon2",
@@ -13,12 +13,14 @@ dependencies = [
  "chrono",
  "crawler-engine",
  "dotenvy",
+ "futures-util",
  "pasetors",
  "query-search",
  "redis",
  "serde",
  "serde_json",
  "sqlx",
+ "time",
  "tokio",
  "tower-http",
 ]

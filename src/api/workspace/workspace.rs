@@ -1,7 +1,4 @@
 
-use std::error::Error;
-use crate::api::stats::redis_stats::RedisStats;
-use axum::extract::ws::close_code::STATUS;
 use axum::http::StatusCode;
 use axum::{Json,response::IntoResponse};
 use axum::{
@@ -9,6 +6,15 @@ use axum::{
 };
 use tokio::time::{sleep, Duration};
 use axum_extra::extract::cookie::{CookieJar, Cookie};
+use crate::paseto::paseto::PasetoAuth;
+use serde_json::json;
+use crate::version::VersionServer;
+use serde::Deserialize;
+use futures_util::{SinkExt, StreamExt};
+
+use crate::db::db::Db;
+use crate::api::workspace::workspace_ws::WsWorkSpace;
+
 
 
 pub async fn workspace_ws(
@@ -17,22 +23,23 @@ pub async fn workspace_ws(
 ) -> impl IntoResponse {
    
     let token = jar.get("auth_token").map(|cookie| cookie.value().to_string());
+    
+    if let Some(token) = token {
 
-    if let Some(jwt_token) = token {
-        println!("WS: Користувач авторизований, токен: {}", jwt_token);
-        ws.on_upgrade(move |socket| workspace_socket(socket, jwt_token))
-    } else {
-        println!("WS: Спроба входу без токена!");
-        StatusCode::UNAUTHORIZED.into_response()
-    }
-}
-
-async fn workspace_socket(mut socket: WebSocket, token: String) {
-
-
-    while let Some(Ok(msg)) = socket.recv().await {
-        if let Message::Text(text) = msg {
-            println!("Отримано від клієнта: {}", text);
+        match PasetoAuth::verify_token(&token).await {
+            Ok(id) => {
+                ws.on_upgrade(move |socket| async move {
+                    let mut ws_session = WsWorkSpace::new(socket, id).await;
+                    ws_session.workspace_socket().await;
+                }) 
+            },
+            Err(_e) => {
+                (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
+            },
         }
+        
+        
+    } else {
+        (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
     }
 }

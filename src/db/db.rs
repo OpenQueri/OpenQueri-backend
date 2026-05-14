@@ -29,10 +29,10 @@ impl Db {
         Self { pool }
     }
 
-    pub async fn create_user(&self, username: &str, hash: &str, email: &str) -> anyhow::Result<i32> {
+    pub async fn create_user(&self, username: &str, hash: &str, email: &str, role: &str) -> anyhow::Result<i32> {
         let res = sqlx::query!(
-            "INSERT INTO users (username, password_hash,email) VALUES ($1, $2, $3) RETURNING id",
-            username, hash, email
+            "INSERT INTO users (username, password_hash, email, role_user) VALUES ($1, $2, $3, $4) RETURNING id",
+            username, hash, email, role
         )
         
         .fetch_one(&self.pool).await?;
@@ -48,6 +48,30 @@ impl Db {
         .await?;
 
         Ok(res.map(|row| row.id))
+    }
+
+    pub async fn get_user_name_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
+        let id: i32 = id_str.parse()?;
+        let res = sqlx::query!(
+            "SELECT username FROM users WHERE id = $1",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(res.map(|row| row.username))
+    }
+
+    pub async fn get_role_name_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
+        let id: i32 = id_str.parse()?;
+        let res = sqlx::query!(
+            "SELECT role_user FROM users WHERE id = $1",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(res.map(|row| row.role_user))
     }
 
     pub async fn get_user_hash_pasword_by_email(&self, email: &str) -> anyhow::Result<Option<String>> {

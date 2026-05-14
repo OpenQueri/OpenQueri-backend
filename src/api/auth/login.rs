@@ -45,7 +45,7 @@ pub async fn login(jar: CookieJar, Json(params): Json<TextParam>) -> impl IntoRe
     match Argon::verify_pwd(&password_hash, &params.password).await {
         Ok(bool) => match bool {
             true => {
-                let token = match PasetoAuth::create_token(&id, 60 * 60 * 24).await {
+                let token = match PasetoAuth::create_token(&id, 3600).await {
                     Ok(token) => token,
                     Err(_) => return (jar, error_login("Error crate token").await).into_response(),
                     
@@ -53,7 +53,7 @@ pub async fn login(jar: CookieJar, Json(params): Json<TextParam>) -> impl IntoRe
                 cookie = Cookie::build(("auth_token", token))
                         .path("/")
                         .http_only(true)
-                        .same_site(axum_extra::extract::cookie::SameSite::Lax)
+                        .same_site(axum_extra::extract::cookie::SameSite::Lax) 
                         .build();
             },
             false => return (jar, error_login("wrong password").await).into_response(),
