@@ -1,5 +1,5 @@
 use std::error::Error;
-use crate::api::stats::redis_stats::RedisStats;
+use crate::redis::redis_stats::RedisStats;
 use axum::{
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
 };

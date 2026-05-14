@@ -8,6 +8,8 @@ mod paseto;
 mod argon2;
 mod db;
 mod version;
+mod redis;
+
 use crate::{setting::setting::*};
 
 #[tokio::main]
