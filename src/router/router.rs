@@ -13,7 +13,7 @@ use crate::api::auth::register::register;
 use crate::api::auth::login::login;
 use crate::api::workspace::workspace::workspace_ws;
 use crate::api::delete_sesion_token::delete_sesion_token::delete_sesion_token;
-use crate::api::stats::redis_stats::RedisStats;
+use crate::redis::redis_stats::RedisStats;
 
 pub async fn router() -> Router{
 

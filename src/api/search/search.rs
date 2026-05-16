@@ -5,7 +5,7 @@ use serde::{Deserialize};
 use serde_json::json;
 
 use query_search::search_data;
-use crate::api::stats::redis_stats::RedisStats;
+use crate::redis::redis_stats::RedisStats;
 
 use axum::extract::State;
 use std::sync::Arc;

@@ -13,8 +13,8 @@ use crate::version::VersionServer;
 use serde::Deserialize;
 use futures_util::{SinkExt, StreamExt};
 use crate::db::db::{Db, TrackedSite};
-
-
+use crate::redis::redis::RedisListener;
+use std::result::Result::{Ok, Err};
 pub struct WsWorkSpace {
     sender: futures_util::stream::SplitSink<WebSocket, Message>,
     receiver: futures_util::stream::SplitStream<WebSocket>,
@@ -26,6 +26,7 @@ struct User{
    username: String,
    role: String,
    id: String,
+   email: String,
 }
 
 
@@ -41,6 +42,11 @@ enum ClientRequest {
     #[serde(rename = "DELETE_URL")]
     DeleteUrl {
         url: String
+    },
+    #[serde(rename = "UPDATE_PENDING")]
+    UpdatePeding {
+        url: String,
+        id: String
     },
 
 }
@@ -58,12 +64,24 @@ impl WsWorkSpace {
             sender: send,
             receiver: rec,
             db: db,
-            user_info: User { username: "_".to_string(), role: "_".to_string(), id: id },
+            user_info: User { username: "_".to_string(), role: "_".to_string(), id: id, email: "_".to_string() },
         }
     }
 
 
     pub async fn workspace_socket(&mut self){
+
+        let email = match self.db.get_email_by_id(&self.user_info.id).await {
+            Ok(Some(res)) => res,
+            Ok(None) => r":\??".to_string(),
+            Err(e) => {
+                println!("{}", e);
+                r":\??".to_string()
+            }
+        };
+
+        self.user_info.email = email;
+
 
         let name_by_id = match self.db.get_user_name_by_id(&self.user_info.id).await {
             Ok(ok_option) => match ok_option {
@@ -99,8 +117,12 @@ impl WsWorkSpace {
         self.user_info.username = name_by_id;
 
         if let Ok(json_string) = serde_json::to_string(&initial_msg) {
+
             let _ = self.sender.send(Message::Text(json_string.into())).await;
         }
+
+
+
 
 
         while let Some(Ok(msg)) = self.receiver.next().await {
@@ -138,12 +160,51 @@ impl WsWorkSpace {
             ClientRequest::DeleteUrl {url} => {
                 self.sumbit_delete_url(url.as_str()).await;
             }
+            ClientRequest::UpdatePeding { url, id } => {
+                self.update_url_peding(&url, &id).await;
+            }
         }
     }
+
+    async fn update_url_peding(
+        &mut self,
+        url_data: &str,
+        id: &str
+    ){
+
+
+        if self.user_info.role == "Admin" {
+
+            match self.db.update_peding(&url_data, "crawling").await {
+                Ok(_) => {
+                    let response = json!({
+                        "type": "UPDATE_PENDING", 
+                        "status": "crawling",
+                        "id": id,
+                    });
+
+
+                    let _ = self.sender.send(Message::Text(response.to_string().into())).await;
+
+                }
+                Err(e) => {
+                    println!("{}",e);
+                }
+                
+            }
+
+            
+        }
+        
+
+    }
+
+
     async fn sumbit_delete_url(
         &mut self,
         url_data: &str
     ){
+        
         match self.db.get_id_by_url(url_data).await {
             Ok(id) => {
                 let id = match id {
@@ -151,7 +212,8 @@ impl WsWorkSpace {
                     None => -1,
 
                 };
-                if self.user_info.id == id.to_string() {
+                if self.user_info.id == id.to_string() || self.user_info.role == "Admin" {
+                
                     self.db.delete_url_crawler_user(url_data).await;
                 }
             }

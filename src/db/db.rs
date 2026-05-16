@@ -40,6 +40,7 @@ impl Db {
         Self { pool }
     }
 
+
     pub async fn create_user(&self, username: &str, hash: &str, email: &str, role: &str) -> anyhow::Result<i32> {
         let res = sqlx::query!(
             "INSERT INTO users (username, password_hash, email, role_user) VALUES ($1, $2, $3, $4) RETURNING id",
@@ -63,6 +64,7 @@ impl Db {
     }
 
     pub async fn get_user_name_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
+        
         let id: i32 = id_str.parse()?;
         let res = sqlx::query!(
             "SELECT username FROM users WHERE id = $1",
@@ -76,13 +78,25 @@ impl Db {
 
     pub async fn get_id_by_url(&self, owner_site: &str) -> anyhow::Result<Option<i32>> {
         let res = sqlx::query!(
-            "SELECT user_id FROM crawler_list WHERE owner_site = $1",
+            "SELECT user_id FROM crawler_list WHERE url = $1",
             owner_site
         )
         .fetch_optional(&self.pool)
         .await?;
 
         Ok(res.and_then(|row| row.user_id))
+    }
+
+    pub async fn get_email_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
+        let id: i32 = id_str.parse()?;
+        let res = sqlx::query!(
+            "SELECT email FROM users WHERE id = $1",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(res.and_then(|row| Some(row.email)))
     }
 
     pub async fn get_role_name_by_id(&self, id_str: &str) -> anyhow::Result<Option<String>> {
@@ -196,6 +210,16 @@ impl Db {
         Ok(())
     }
 
+    pub async fn update_peding(&self, url: &str, status: &str) -> anyhow::Result<()> {
+        sqlx::query!(
+            "UPDATE crawler_list SET status = $1 WHERE url = $2",
+            status, url
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn delete_user(&self, id: i32) -> anyhow::Result<()> {
         sqlx::query!("DELETE FROM users WHERE id = $1", id)
             .execute(&self.pool)
@@ -207,6 +231,7 @@ impl Db {
         sqlx::query!("DELETE FROM crawler_list WHERE url = $1", url)
             .execute(&self.pool)
             .await?;
+        println!("OK");
         Ok(())
     }
 

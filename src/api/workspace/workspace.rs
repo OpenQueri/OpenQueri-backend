@@ -54,6 +54,17 @@ pub async fn workspace_ws(
         
         
     } else {
-        (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
+        ws.on_upgrade(move |socket| async move {
+            let (mut send, mut rec) = socket.split();
+
+            let initial_msg = json!({
+                "Error": "token_no_verify",
+            });
+
+            if let Ok(json_string) = serde_json::to_string(&initial_msg) {
+            let _ = send.send(Message::Text(json_string.into())).await;
+            }
+
+        }) 
     }
 }
