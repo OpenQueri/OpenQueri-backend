@@ -3,7 +3,7 @@ use serde::{Deserialize};
 use axum::{response::IntoResponse};
 
 use crawler_engine::link_scrap;
-use query_search::{add_data, DataADD};
+use query_search::{add_data};
 
 #[derive(Debug, Deserialize)]
 pub struct TextParam{
@@ -25,23 +25,13 @@ pub async fn add_parse_site_crawler(Json(params): Json<TextParam>) -> impl IntoR
         };
 
 
-        for fragment in data_site_responses.iter() {
-            
-            let text_string = fragment.text.join(" ");
-
-            let data = DataADD { 
-                title: fragment.title.as_str(),
-                link:  params.url.as_str(),
-                text:  text_string.as_str(),
-            };
-            println!("Site {}", data.link);
-            match add_data(&data).await {
-                Ok(_) => (),
-                Err(e) => {
-                    println!("fn add_parse_site_crawler Error: {}", e);
-                }
-            };
-        }
+        match add_data(data_site_responses).await {
+            Ok(_) => (),
+            Err(e) => {
+                println!("fn add_parse_site_crawler Error: {}", e);
+            }
+        };
+        
     });
 
     

@@ -46,7 +46,7 @@ pub async fn router() -> Router{
 }
 
 
-pub async fn load_bin() -> Result<(), Box<dyn Error>>{
+pub async fn load_bin() -> Result<(), Box<dyn Error + Send + Sync>>{
 
     loading_data().await?;
 

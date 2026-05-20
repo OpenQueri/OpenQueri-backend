@@ -13,7 +13,7 @@ mod redis;
 use crate::{setting::setting::*};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>>{
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>>{
 
 
     let _ = match setting_server().await {

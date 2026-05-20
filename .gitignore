@@ -2,3 +2,5 @@
 /search_engine_db
 **/*.rs.bk
 Cargo.lock
+model.onnx
+tokenizer.json

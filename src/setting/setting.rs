@@ -4,7 +4,7 @@ use axum::http::{Method, header,HeaderValue};
 
 use crate::router::router::router;
 
-pub async fn setting_server() -> Result<(), Box<dyn Error>>{
+pub async fn setting_server() -> Result<(), Box<dyn Error + Send + Sync>>{
     
     let ip_listener = "127.0.0.1:8000";
 

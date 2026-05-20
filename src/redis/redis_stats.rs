@@ -74,7 +74,7 @@ impl RedisStats {
                     let mut conn = client.get_multiplexed_async_connection().await?;
                     let key = "stats:counter_requests";
                     let val: Option<u32> = conn.get(key).await?;
-                    Ok::<u32, Box<dyn Error>>(val.unwrap_or(0))
+                    Ok::<u32, Box<dyn Error + Send + Sync>>(val.unwrap_or(0))
                 }.await;
 
                 match result {
